@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "datagen",
+  "version": "${version}",
+  "name": "datagen",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/datagen/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "client": [
+      "com.jvavav.datagen.client.DatagenClient"
+    ],
+    "main": [
+      "com.jvavav.datagen.Datagen"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version}"
+  }
+}

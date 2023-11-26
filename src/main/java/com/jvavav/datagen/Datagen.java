@@ -399,6 +399,9 @@ public class Datagen implements ModInitializer {
                 if (state.isTransparent(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
                     flags1 |= 4;
                 }
+                if (state.isSolidBlock(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
+                    flags1 |= 4;
+                }
                 flags1 |= state.getOpacity(EmptyBlockView.INSTANCE, BlockPos.ORIGIN) << 4;
 
                 int flags2 = 0;
@@ -448,7 +451,7 @@ public class Datagen implements ModInitializer {
             boundz.set(v, k);
         }
         write_head(b, "block_state_static_bounds_table#" +
-                "(opacity(4) NONE translucent full_cube " +
+                "(opacity(4) solid_block translucent full_cube " +
                 "opaque_full_cube) side_solid_full " +
                 "side_solid_center side_solid_rigid " +
                 "collision_shape culling_shape", boundz.size());

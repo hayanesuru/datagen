@@ -400,7 +400,7 @@ public class Datagen implements ModInitializer {
                     flags1 |= 4;
                 }
                 if (state.isSolidBlock(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
-                    flags1 |= 4;
+                    flags1 |= 8;
                 }
                 flags1 |= state.getOpacity(EmptyBlockView.INSTANCE, BlockPos.ORIGIN) << 4;
 

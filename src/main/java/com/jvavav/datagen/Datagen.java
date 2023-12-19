@@ -12,6 +12,7 @@ import net.minecraft.Bootstrap;
 import net.minecraft.SharedConstants;
 import net.minecraft.block.Block;
 import net.minecraft.block.SideShapeType;
+import net.minecraft.fluid.Fluid;
 import net.minecraft.network.NetworkSide;
 import net.minecraft.network.NetworkState;
 import net.minecraft.registry.Registries;
@@ -209,23 +210,60 @@ public class Datagen implements ModInitializer {
         }
 
         write_head(b, "block_state", Registries.BLOCK.size());
+        var ncount = 0;
+        var nval = 0;
         for (var block : Registries.BLOCK) {
-            if (block.getStateManager().getProperties().isEmpty()) {
-                b.append('\n');
-                continue;
-            }
-            var list = new IntArrayList(block.getStateManager().getProperties().size());
-            for (var prop : block.getStateManager().getProperties()) {
-                var list2 = new IntArrayList(prop.getValues().size() + 1);
-                list2.add(keys.getInt(prop.getName()));
-                for (var val : prop.getValues()) {
-                    list2.add(vals.getInt(Util.getValueAsString(prop, val)));
+            int val = -1;
+            if (!block.getStateManager().getProperties().isEmpty()) {
+                var list = new IntArrayList(block.getStateManager().getProperties().size());
+                for (var prop : block.getStateManager().getProperties()) {
+                    var list2 = new IntArrayList(prop.getValues().size() + 1);
+                    list2.add(keys.getInt(prop.getName()));
+                    for (var x : prop.getValues()) {
+                        list2.add(vals.getInt(Util.getValueAsString(prop, x)));
+                    }
+                    list.add(kvs.getInt(list2));
                 }
-                list.add(kvs.getInt(list2));
+                val = ps.getInt(list);
             }
-            b.append(ih(ps.getInt(list)));
+            if (ncount == 0) {
+                ncount = 1;
+                nval = val;
+            } else if (val == nval) {
+                ncount += 1;
+            } else if (ncount == 1) {
+                if (nval != -1) {
+                    b.append(ih(nval));
+                }
+                b.append('\n');
+                nval = val;
+            } else {
+                b.append('~');
+                b.append(ih(ncount));
+                if (nval != -1) {
+                    b.append(' ');
+                    b.append(ih(nval));
+                }
+                b.append('\n');
+                ncount = 1;
+                nval = val;
+            }
+        }
+        if (ncount == 1) {
+            if (nval != -1) {
+                b.append(ih(nval));
+            }
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            if (nval != -1) {
+                b.append(' ');
+                b.append(ih(nval));
+            }
             b.append('\n');
         }
+        ncount = 0;
 
         write_head(b, "block_to_block_state", Registries.BLOCK.size());
         for (var block : Registries.BLOCK) {
@@ -353,6 +391,7 @@ public class Datagen implements ModInitializer {
 
         var lastb = Registries.BLOCK.get(Registries.BLOCK.size() - 1);
         var lastid = Block.STATE_IDS.getRawId(lastb.getStateManager().getStates().get(lastb.getStateManager().getStates().size() - 1));
+        int mval = 0;
 
         write_head(b, "block_state_settings#" +
                 "luminance (has_sided_transparency lava_ignitable " +
@@ -370,12 +409,49 @@ public class Datagen implements ModInitializer {
                         (state.isBurnable() ? 0b1000000 : 0) |
                         (state.hasSidedTransparency() ? 0b10000000 : 0);
                 int lumi = state.getLuminance();
-                b.append(ih(lumi));
-                b.append(' ');
-                b.append(ih(flags));
-                b.append('\n');
+
+                if (ncount == 0) {
+                    ncount = 1;
+                    nval = flags;
+                    mval = lumi;
+                } else if (flags == nval && lumi == mval) {
+                    ncount += 1;
+                } else if (ncount == 1) {
+                    b.append(ih(mval));
+                    b.append(' ');
+                    b.append(ih(nval));
+                    b.append('\n');
+                    nval = flags;
+                    mval = lumi;
+                } else {
+                    b.append('~');
+                    b.append(ih(ncount));
+                    b.append(' ');
+                    b.append(ih(mval));
+                    b.append(' ');
+                    b.append(ih(nval));
+                    b.append('\n');
+                    ncount = 1;
+                    nval = flags;
+                    mval = lumi;
+                }
             }
         }
+        if (ncount == 1) {
+            b.append(ih(mval));
+            b.append(' ');
+            b.append(ih(nval));
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            b.append(' ');
+            b.append(ih(mval));
+            b.append(' ');
+            b.append(ih(nval));
+            b.append('\n');
+        }
+        ncount = 0;
 
         var bounds = new Object2IntOpenHashMap<IntArrayList>();
         var boundx = new IntArrayList(lastid + 1);
@@ -468,18 +544,113 @@ public class Datagen implements ModInitializer {
         }
 
         write_head(b, "block_state_static_bounds", lastid + 1);
+        for (var val : boundx) {
+            if (val == Integer.MAX_VALUE) {
+                val = -1;
+            }
 
-        for (var index : boundx) {
-            if (index == Integer.MAX_VALUE) {
+            if (ncount == 0) {
+                ncount = 1;
+                nval = val;
+            } else if (val == nval) {
+                ncount += 1;
+            } else if (ncount == 1) {
+                if (nval != -1) {
+                    b.append(ih(nval));
+                }
                 b.append('\n');
+                nval = val;
             } else {
-                b.append(ih(index));
+                b.append('~');
+                b.append(ih(ncount));
+                if (nval != -1) {
+                    b.append(' ');
+                    b.append(ih(nval));
+                }
                 b.append('\n');
+                ncount = 1;
+                nval = val;
             }
         }
+        if (ncount == 1) {
+            if (nval != -1) {
+                b.append(ih(nval));
+            }
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            if (nval != -1) {
+                b.append(' ');
+                b.append(ih(nval));
+            }
+            b.append('\n');
+        }
+        ncount = 0;
+
         write_head(b, "item_max_count", Registries.ITEM.size());
         for (var item : Registries.ITEM) {
-            b.append(ih(item.getMaxCount()));
+            int val = item.getMaxCount();
+            if (ncount == 0) {
+                ncount = 1;
+                nval = val;
+            } else if (val == nval) {
+                ncount += 1;
+            } else if (ncount == 1) {
+                b.append(ih(nval));
+                b.append('\n');
+                nval = val;
+            } else {
+                b.append('~');
+                b.append(ih(ncount));
+                b.append(' ');
+                b.append(ih(nval));
+                b.append('\n');
+                ncount = 1;
+                nval = val;
+            }
+        }
+        if (ncount == 1) {
+            b.append(ih(nval));
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            b.append(' ');
+            b.append(ih(nval));
+            b.append('\n');
+        }
+        ncount = 0;
+        write_head(b, "block_to_fluid_state", Block.STATE_IDS.size());
+        for (var state : Block.STATE_IDS) {
+            var val = Fluid.STATE_IDS.getRawId(state.getFluidState());
+            if (ncount == 0) {
+                ncount = 1;
+                nval = val;
+            } else if (val == nval) {
+                ncount += 1;
+            } else if (ncount == 1) {
+                b.append(ih(nval));
+                b.append('\n');
+                nval = val;
+            } else {
+                b.append('~');
+                b.append(ih(ncount));
+                b.append(' ');
+                b.append(ih(nval));
+                b.append('\n');
+                ncount = 1;
+                nval = val;
+            }
+        }
+        if (ncount == 1) {
+            b.append(ih(nval));
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            b.append(' ');
+            b.append(ih(nval));
             b.append('\n');
         }
     }

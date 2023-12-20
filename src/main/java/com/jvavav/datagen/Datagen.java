@@ -13,6 +13,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.block.Block;
 import net.minecraft.block.SideShapeType;
 import net.minecraft.fluid.Fluid;
+import net.minecraft.item.BlockItem;
 import net.minecraft.network.NetworkSide;
 import net.minecraft.network.NetworkState;
 import net.minecraft.registry.Registries;
@@ -270,9 +271,16 @@ public class Datagen implements ModInitializer {
             b.append(ih(Block.STATE_IDS.getRawId(block.getDefaultState())));
             b.append('\n');
         }
-        write_head(b, "block_to_item", Registries.BLOCK.size());
-        for (var block : Registries.BLOCK) {
-            b.append(ih(Registries.ITEM.getRawId(block.asItem())));
+        write_head(b, "item_to_block", Registries.ITEM.size());
+        var item_to_block = new IntArrayList();
+        item_to_block.size(Registries.ITEM.size());
+        for (var x : Registries.ITEM) {
+            if (x instanceof BlockItem item) {
+                item_to_block.set(Registries.ITEM.getRawId(item.asItem()), Registries.BLOCK.getRawId(item.getBlock()));
+            }
+        }
+        for (var block : item_to_block) {
+            b.append(ih(block));
             b.append('\n');
         }
 

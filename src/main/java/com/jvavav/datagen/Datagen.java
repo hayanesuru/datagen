@@ -16,6 +16,11 @@ import net.minecraft.fluid.Fluid;
 import net.minecraft.item.BlockItem;
 import net.minecraft.network.NetworkSide;
 import net.minecraft.network.NetworkState;
+import net.minecraft.network.NetworkStateType;
+import net.minecraft.network.packet.LoginPackets;
+import net.minecraft.network.packet.PlayPackets;
+import net.minecraft.network.state.HandshakeStates;
+import net.minecraft.network.state.LoginStates;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Util;
@@ -41,74 +46,15 @@ public class Datagen implements ModInitializer {
         b.append('\n');
         b.append(Integer.toHexString(SharedConstants.getGameVersion().getProtocolVersion()));
         b.append('\n');
-        gen_packet(b);
-        gen_registries(b);
+        for (var registry : Registries.REGISTRIES) {
+            write_head(b, registry.getKey().getValue().getPath(), registry.size());
+            write_registry(b, registry);
+        }
+        gen(b);
         try {
             Files.writeString(Path.of("data.txt"), b.toString());
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private static void gen_packet(StringBuilder b) {
-        write_head(b, "network_state", NetworkState.values().length);
-        for (var state : NetworkState.values()) {
-            b.append(state.getId());
-            b.append("\n");
-        }
-
-        for (var state : NetworkState.values()) {
-            var x = state.getPacketIdToPacketMap(NetworkSide.CLIENTBOUND);
-            var size = x.size();
-            if (size == 0) {
-                continue;
-            }
-            write_head(b, state.getId() + "_s2c", size);
-            for (int key = 0; key < size; key++) {
-                String name = x.get(key).getSimpleName();
-                if (name.endsWith("S2CPacket")) {
-                    name = name.substring(0, name.length() - 9);
-                } else if (name.endsWith("Packet")) {
-                    name = name.substring(0, name.length() - 6);
-                } else {
-                    String name2 = x.get(key).getSuperclass().getSimpleName();
-                    if (name2.endsWith("S2CPacket")) {
-                        name2 = name2.substring(0, name2.length() - 9);
-                    } else if (name2.endsWith("Packet")) {
-                        name2 = name2.substring(0, name2.length() - 6);
-                    }
-                    name = name2 + name;
-                }
-                b.append(name);
-                b.append('\n');
-            }
-        }
-
-        for (var state : NetworkState.values()) {
-            var x = state.getPacketIdToPacketMap(NetworkSide.SERVERBOUND);
-            var size = x.size();
-            if (size == 0) {
-                continue;
-            }
-            write_head(b, state.getId() + "_c2s", size);
-            for (int key = 0; key < size; key++) {
-                String name = x.get(key).getSimpleName();
-                if (name.endsWith("C2SPacket")) {
-                    name = name.substring(0, name.length() - 9);
-                } else if (name.endsWith("Packet")) {
-                    name = name.substring(0, name.length() - 6);
-                } else {
-                    String name2 = x.get(key).getSuperclass().getSimpleName();
-                    if (name2.endsWith("C2SPacket")) {
-                        name2 = name2.substring(0, name2.length() - 9);
-                    } else if (name2.endsWith("Packet")) {
-                        name2 = name2.substring(0, name2.length() - 6);
-                    }
-                    name = name2 + name;
-                }
-                b.append(name);
-                b.append('\n');
-            }
         }
     }
 
@@ -119,12 +65,7 @@ public class Datagen implements ModInitializer {
         }
     }
 
-    private static void gen_registries(StringBuilder b) {
-        for (var registry : Registries.REGISTRIES) {
-            write_head(b, registry.getKey().getValue().getPath(), registry.size());
-            write_registry(b, registry);
-        }
-
+    private static void gen(StringBuilder b) {
         var keys = new Object2IntOpenHashMap<String>();
         var vals = new Object2IntOpenHashMap<String>();
         var kvs = new Object2IntOpenHashMap<IntArrayList>();

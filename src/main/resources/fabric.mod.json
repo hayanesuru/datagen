@@ -7,7 +7,6 @@
   "authors": [],
   "contact": {},
   "license": "All-Rights-Reserved",
-  "icon": "assets/datagen/icon.png",
   "environment": "server",
   "entrypoints": {
     "client": [
@@ -19,5 +18,8 @@
   },
   "depends": {
     "fabricloader": ">=${loader_version}"
-  }
+  },
+  "mixins": [
+    "datagen.mixins.json"
+  ]
 }

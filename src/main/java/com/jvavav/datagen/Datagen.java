@@ -14,12 +14,13 @@ import net.minecraft.block.Block;
 import net.minecraft.block.SideShapeType;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.item.BlockItem;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
 import net.minecraft.util.Util;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.registry.Registry;
 import net.minecraft.world.EmptyBlockView;
 
 import java.io.IOException;
@@ -41,7 +42,7 @@ public class Datagen implements ModInitializer {
         b.append('\n');
         b.append(Integer.toHexString(SharedConstants.getGameVersion().getProtocolVersion()));
         b.append('\n');
-        for (var registry : Registry.REGISTRIES) {
+        for (var registry : Registries.REGISTRIES) {
             write_head(b, registry.getKey().getValue().getPath(), registry.size());
             write_registry(b, registry);
         }
@@ -65,7 +66,7 @@ public class Datagen implements ModInitializer {
         var vals = new Object2IntOpenHashMap<String>();
         var kvs = new Object2IntOpenHashMap<IntArrayList>();
         var ps = new Object2IntOpenHashMap<IntArrayList>();
-        for (var block : Registry.BLOCK) {
+        for (var block : Registries.BLOCK) {
             var p = block.getStateManager().getProperties();
             if (p.isEmpty()) {
                 continue;
@@ -146,10 +147,10 @@ public class Datagen implements ModInitializer {
             b.append('\n');
         }
 
-        write_head(b, "block_state", Registry.BLOCK.size());
+        write_head(b, "block_state", Registries.BLOCK.size());
         var ncount = 0;
         var nval = 0;
-        for (var block : Registry.BLOCK) {
+        for (var block : Registries.BLOCK) {
             int val = -1;
             if (!block.getStateManager().getProperties().isEmpty()) {
                 var list = new IntArrayList(block.getStateManager().getProperties().size());
@@ -202,16 +203,16 @@ public class Datagen implements ModInitializer {
         }
         ncount = 0;
 
-        write_head(b, "block_to_block_state", Registry.BLOCK.size());
-        for (var block : Registry.BLOCK) {
+        write_head(b, "block_to_block_state", Registries.BLOCK.size());
+        for (var block : Registries.BLOCK) {
             b.append(ih(Block.STATE_IDS.getRawId(block.getDefaultState())));
             b.append('\n');
         }
-        write_head(b, "item_to_block", Registry.ITEM.size());
-        var item_to_block = new int[Registry.ITEM.size()];
-        for (var x : Registry.ITEM) {
+        write_head(b, "item_to_block", Registries.ITEM.size());
+        var item_to_block = new int[Registries.ITEM.size()];
+        for (var x : Registries.ITEM) {
             if (x instanceof BlockItem item) {
-                item_to_block[Registry.ITEM.getRawId(item.asItem())] = Registry.BLOCK.getRawId(item.getBlock());
+                item_to_block[Registries.ITEM.getRawId(item.asItem())] = Registries.BLOCK.getRawId(item.getBlock());
             }
         }
         for (var block : item_to_block) {
@@ -221,7 +222,7 @@ public class Datagen implements ModInitializer {
 
         var f32s = new Float2IntOpenHashMap(128);
         f32s.put(0.0f, 0);
-        for (var block : Registry.BLOCK) {
+        for (var block : Registries.BLOCK) {
             f32s.putIfAbsent(block.getDefaultState().getHardness(EmptyBlockView.INSTANCE, BlockPos.ORIGIN), f32s.size());
             f32s.putIfAbsent(block.getSlipperiness(), f32s.size());
             f32s.putIfAbsent(block.getVelocityMultiplier(), f32s.size());
@@ -242,7 +243,7 @@ public class Datagen implements ModInitializer {
         }
 
         var shapes = new Object2IntOpenHashMap<List<Box>>(128);
-        for (var block : Registry.BLOCK) {
+        for (var block : Registries.BLOCK) {
             if (block.hasDynamicBounds()) {
                 continue;
             }
@@ -312,9 +313,9 @@ public class Datagen implements ModInitializer {
 
         write_head(b, "block_settings#hardness " +
                 "blastresistance slipperiness velocity_multiplier " +
-                "jump_velocity_multiplier", Registry.BLOCK.size());
+                "jump_velocity_multiplier", Registries.BLOCK.size());
 
-        for (var block : Registry.BLOCK) {
+        for (var block : Registries.BLOCK) {
             float xf32a = block.getDefaultState().getHardness(EmptyBlockView.INSTANCE, BlockPos.ORIGIN);
             float xf32b = block.getBlastResistance();
             float xf32c = block.getSlipperiness();
@@ -332,7 +333,7 @@ public class Datagen implements ModInitializer {
             b.append('\n');
         }
 
-        var lastb = Registry.BLOCK.get(Registry.BLOCK.size() - 1);
+        var lastb = Registries.BLOCK.get(Registries.BLOCK.size() - 1);
         var lastid = Block.STATE_IDS.getRawId(lastb.getStateManager().getStates().get(lastb.getStateManager().getStates().size() - 1));
         int mval = 0;
 
@@ -341,15 +342,15 @@ public class Datagen implements ModInitializer {
                 "material_replaceable opaque tool_required " +
                 "exceeds_cube redstone_power_source " +
                 "has_comparator_output)", lastid + 1);
-        for (var block : Registry.BLOCK) {
+        for (var block : Registries.BLOCK) {
             for (var state : block.getStateManager().getStates()) {
                 int flags = (state.hasComparatorOutput() ? 0b1 : 0) |
                         (state.emitsRedstonePower() ? 0b10 : 0) |
                         (state.exceedsCube() ? 0b100 : 0) |
                         (state.isToolRequired() ? 0b1000 : 0) |
                         (state.isOpaque() ? 0b10000 : 0) |
-                        (state.getMaterial().isReplaceable() ? 0b100000 : 0) |
-                        (state.getMaterial().isBurnable() ? 0b1000000 : 0) |
+                        (state.isReplaceable() ? 0b100000 : 0) |
+                        (state.isBurnable() ? 0b1000000 : 0) |
                         (state.hasSidedTransparency() ? 0b10000000 : 0);
                 int lumi = state.getLuminance();
 
@@ -398,7 +399,7 @@ public class Datagen implements ModInitializer {
 
         var bounds = new Object2IntOpenHashMap<IntArrayList>();
         var boundx = new IntArrayList(lastid + 1);
-        for (var block : Registry.BLOCK) {
+        for (var block : Registries.BLOCK) {
             boolean isdyn = block.hasDynamicBounds();
             if (isdyn) {
                 int size = block.getStateManager().getStates().size();
@@ -415,7 +416,7 @@ public class Datagen implements ModInitializer {
                 if (state.isFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
                     flags1 |= 2;
                 }
-                if (state.isTranslucent(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
+                if (state.isTransparent(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
                     flags1 |= 4;
                 }
                 if (state.isSolidBlock(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
@@ -531,8 +532,8 @@ public class Datagen implements ModInitializer {
         }
         ncount = 0;
 
-        write_head(b, "item_max_count", Registry.ITEM.size());
-        for (var item : Registry.ITEM) {
+        write_head(b, "item_max_count", Registries.ITEM.size());
+        for (var item : Registries.ITEM) {
             int val = item.getMaxCount();
             if (ncount == 0) {
                 ncount = 1;

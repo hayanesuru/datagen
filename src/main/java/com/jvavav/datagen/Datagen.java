@@ -42,7 +42,7 @@ public class Datagen implements ModInitializer {
         b.append(Integer.toHexString(SharedConstants.getGameVersion().getProtocolVersion()));
         b.append('\n');
         for (var registry : Registry.REGISTRIES) {
-            write_head(b, registry.getKey().getValue().getPath(), registry.getEntries().size());
+            write_head(b, registry.getKey().getValue().getPath(), registry.size());
             write_registry(b, registry);
         }
         gen(b);
@@ -146,7 +146,7 @@ public class Datagen implements ModInitializer {
             b.append('\n');
         }
 
-        write_head(b, "block_state", Registry.BLOCK.getEntries().size());
+        write_head(b, "block_state", Registry.BLOCK.size());
         var ncount = 0;
         var nval = 0;
         for (var block : Registry.BLOCK) {
@@ -202,13 +202,13 @@ public class Datagen implements ModInitializer {
         }
         ncount = 0;
 
-        write_head(b, "block_to_block_state", Registry.BLOCK.getEntries().size());
+        write_head(b, "block_to_block_state", Registry.BLOCK.size());
         for (var block : Registry.BLOCK) {
             b.append(ih(Block.STATE_IDS.getRawId(block.getDefaultState())));
             b.append('\n');
         }
-        write_head(b, "item_to_block", Registry.ITEM.getEntries().size());
-        var item_to_block = new int[Registry.ITEM.getEntries().size()];
+        write_head(b, "item_to_block", Registry.ITEM.size());
+        var item_to_block = new int[Registry.ITEM.size()];
         for (var x : Registry.ITEM) {
             if (x instanceof BlockItem item) {
                 item_to_block[Registry.ITEM.getRawId(item.asItem())] = Registry.BLOCK.getRawId(item.getBlock());
@@ -312,7 +312,7 @@ public class Datagen implements ModInitializer {
 
         write_head(b, "block_settings#hardness " +
                 "blastresistance slipperiness velocity_multiplier " +
-                "jump_velocity_multiplier", Registry.BLOCK.getEntries().size());
+                "jump_velocity_multiplier", Registry.BLOCK.size());
 
         for (var block : Registry.BLOCK) {
             float xf32a = block.getDefaultState().getHardness(EmptyBlockView.INSTANCE, BlockPos.ORIGIN);
@@ -332,7 +332,7 @@ public class Datagen implements ModInitializer {
             b.append('\n');
         }
 
-        var lastb = Registry.BLOCK.get(Registry.BLOCK.getEntries().size() - 1);
+        var lastb = Registry.BLOCK.get(Registry.BLOCK.size() - 1);
         var lastid = Block.STATE_IDS.getRawId(lastb.getStateManager().getStates().get(lastb.getStateManager().getStates().size() - 1));
         int mval = 0;
 
@@ -531,7 +531,7 @@ public class Datagen implements ModInitializer {
         }
         ncount = 0;
 
-        write_head(b, "item_max_count", Registry.ITEM.getEntries().size());
+        write_head(b, "item_max_count", Registry.ITEM.size());
         for (var item : Registry.ITEM) {
             int val = item.getMaxCount();
             if (ncount == 0) {

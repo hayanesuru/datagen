@@ -14,6 +14,9 @@ import net.minecraft.block.Block;
 import net.minecraft.block.SideShapeType;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.item.BlockItem;
+import net.minecraft.network.NetworkSide;
+import net.minecraft.network.NetworkState;
+import net.minecraft.network.Packet;
 import net.minecraft.util.Util;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.math.BlockPos;
@@ -21,11 +24,14 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.EmptyBlockView;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 public class Datagen implements ModInitializer {
@@ -41,6 +47,7 @@ public class Datagen implements ModInitializer {
         b.append('\n');
         b.append(Integer.toHexString(SharedConstants.getGameVersion().getProtocolVersion()));
         b.append('\n');
+        packetId(b);
         for (var registry : Registry.REGISTRIES) {
             write_head(b, registry.getKey().getValue().getPath(), registry.size());
             write_registry(b, registry);
@@ -51,6 +58,47 @@ public class Datagen implements ModInitializer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    private static void packetId(StringBuilder b) {
+        var list = new ObjectArrayList<String>(128);
+        for (NetworkState state : NetworkState.values()) {
+            for (var entry : state.packetHandlers.entrySet()) {
+                NetworkSide side = entry.getKey();
+                NetworkState.PacketHandler<?> x = entry.getValue();
+                list.size(x.packetIds.size());
+                for (var e : x.packetIds.object2IntEntrySet()) {
+                    var id = e.getIntValue();
+                    var clazz = e.getKey();
+                    list.set(id, getPacketName(clazz));
+                }
+                var n = switch (side) {
+                    case CLIENTBOUND -> state.name().toLowerCase(Locale.ENGLISH) + "_s2c";
+                    case SERVERBOUND -> state.name().toLowerCase(Locale.ENGLISH) + "_c2s";
+                };
+                write_head(b, n, list.size());
+                for (String s : list) {
+                    b.append(s);
+                    b.append("\n");
+                }
+            }
+        }
+    }
+
+    private static @NotNull String getPacketName(Class<?> x) {
+        var clazz = x.getSimpleName();
+        if (clazz.endsWith("C2SPacket") || clazz.endsWith("S2CPacket")) {
+            clazz = clazz.substring(0, clazz.length() - 9);
+        } else {
+            var superClazz = x.getSuperclass().getSimpleName();
+            if (superClazz.endsWith("C2SPacket") || superClazz.endsWith("S2CPacket")) {
+                clazz = superClazz.substring(0, superClazz.length() - 9) + clazz;
+            } else {
+                clazz = superClazz;
+            }
+        }
+        return clazz;
     }
 
     private static <T> void write_registry(StringBuilder b, Registry<T> registry) {

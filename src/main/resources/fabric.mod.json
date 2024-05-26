@@ -19,7 +19,5 @@
   "depends": {
     "fabricloader": ">=${loader_version}"
   },
-  "mixins": [
-    "datagen.mixins.json"
-  ]
+  "accessWidener": "datagen.accesswidener"
 }

@@ -81,6 +81,7 @@ public class Datagen implements ModInitializer {
                 if (x == null) {
                     continue;
                 }
+                list.clear();
                 while (x != null) {
                     var clazz = getPacketName(x);
                     list.add(clazz);

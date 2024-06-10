@@ -12,12 +12,16 @@ import net.minecraft.Bootstrap;
 import net.minecraft.SharedConstants;
 import net.minecraft.block.Block;
 import net.minecraft.block.SideShapeType;
+import net.minecraft.fluid.FlowableFluid;
 import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
 import net.minecraft.item.BlockItem;
 import net.minecraft.network.NetworkSide;
 import net.minecraft.network.NetworkState;
 import net.minecraft.network.Packet;
 import net.minecraft.network.packet.s2c.play.CommandSuggestionsS2CPacket;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.Util;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.math.BlockPos;
@@ -125,6 +129,21 @@ public class Datagen implements ModInitializer {
         var vals = new Object2IntOpenHashMap<String>();
         var kvs = new Object2IntOpenHashMap<IntArrayList>();
         var ps = new Object2IntOpenHashMap<IntArrayList>();
+        write_head(b, "fluid_state",  Fluid.STATE_IDS.size());
+        for (FluidState t : Fluid.STATE_IDS) {
+            b.append(Registry.FLUID.getId(t.getFluid()).getPath());
+            if (!t.isEmpty()) {
+                if (t.isStill()) {
+                    b.append("_s");
+                }
+                if (t.get(Properties.FALLING)) {
+                    b.append("_f");
+                }
+                b.append('_');
+                b.append(ih(t.getLevel()));
+            }
+            b.append('\n');
+        }
         for (var block : Registry.BLOCK) {
             var p = block.getStateManager().getProperties();
             if (p.isEmpty()) {
@@ -189,7 +208,7 @@ public class Datagen implements ModInitializer {
                     b.append(' ');
                 }
                 first = false;
-                b.append(Integer.toHexString(y));
+                b.append(ih(y));
             }
             b.append('\n');
         }
@@ -612,6 +631,26 @@ public class Datagen implements ModInitializer {
                 ncount = 1;
                 nval = val;
             }
+        }
+        write_head(b, "fluid_to_block", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(ih(Block.STATE_IDS.getRawId(f.getBlockState())));
+            b.append('\n');
+        }
+        write_head(b, "fluid_state_level", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(ih(f.getLevel()));
+            b.append('\n');
+        }
+        write_head(b, "fluid_state_falling", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(f.isEmpty() ? '0' : f.get(FlowableFluid.FALLING) ? '1' : '0');
+            b.append('\n');
+        }
+        write_head(b, "fluid_state_to_fluid", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(ih(Registry.FLUID.getRawId(f.getFluid())));
+            b.append('\n');
         }
         if (ncount == 1) {
             b.append(ih(nval));

@@ -12,7 +12,9 @@ import net.minecraft.Bootstrap;
 import net.minecraft.SharedConstants;
 import net.minecraft.block.Block;
 import net.minecraft.block.SideShapeType;
+import net.minecraft.fluid.FlowableFluid;
 import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
 import net.minecraft.item.BlockItem;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -66,6 +68,21 @@ public class Datagen implements ModInitializer {
         var vals = new Object2IntOpenHashMap<String>();
         var kvs = new Object2IntOpenHashMap<IntArrayList>();
         var ps = new Object2IntOpenHashMap<IntArrayList>();
+        write_head(b, "fluid_state",  Fluid.STATE_IDS.size());
+        for (FluidState t : Fluid.STATE_IDS) {
+            b.append(Registries.FLUID.getId(t.getFluid()).getPath());
+            if (!t.isEmpty()) {
+                if (t.isStill()) {
+                    b.append("_s");
+                }
+                if (t.get(FlowableFluid.FALLING)) {
+                    b.append("_f");
+                }
+                b.append('_');
+                b.append(ih(t.getLevel()));
+            }
+            b.append('\n');
+        }
         for (var block : Registries.BLOCK) {
             var p = block.getStateManager().getProperties();
             if (p.isEmpty()) {
@@ -553,6 +570,26 @@ public class Datagen implements ModInitializer {
                 ncount = 1;
                 nval = val;
             }
+        }
+        write_head(b, "fluid_to_block", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(ih(Block.STATE_IDS.getRawId(f.getBlockState())));
+            b.append('\n');
+        }
+        write_head(b, "fluid_state_level", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(ih(f.getLevel()));
+            b.append('\n');
+        }
+        write_head(b, "fluid_state_falling", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(f.isEmpty() ? '0' : f.get(FlowableFluid.FALLING) ? '1' : '0');
+            b.append('\n');
+        }
+        write_head(b, "fluid_state_to_fluid", Fluid.STATE_IDS.size());
+        for (var f : Fluid.STATE_IDS) {
+            b.append(ih(Registries.FLUID.getRawId(f.getFluid())));
+            b.append('\n');
         }
         if (ncount == 1) {
             b.append(ih(nval));

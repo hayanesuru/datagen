@@ -632,6 +632,17 @@ public class Datagen implements ModInitializer {
                 nval = val;
             }
         }
+        if (ncount == 1) {
+            b.append(ih(nval));
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            b.append(' ');
+            b.append(ih(nval));
+            b.append('\n');
+        }
+        ncount = 0;
         write_head(b, "fluid_to_block", Fluid.STATE_IDS.size());
         for (var f : Fluid.STATE_IDS) {
             b.append(ih(Block.STATE_IDS.getRawId(f.getBlockState())));
@@ -652,17 +663,6 @@ public class Datagen implements ModInitializer {
             b.append(ih(Registry.FLUID.getRawId(f.getFluid())));
             b.append('\n');
         }
-        if (ncount == 1) {
-            b.append(ih(nval));
-            b.append('\n');
-        } else if (ncount != 0) {
-            b.append('~');
-            b.append(ih(ncount));
-            b.append(' ');
-            b.append(ih(nval));
-            b.append('\n');
-        }
-        ncount = 0;
         write_head(b, "block_to_fluid_state", Block.STATE_IDS.size());
         for (var state : Block.STATE_IDS) {
             var val = Fluid.STATE_IDS.getRawId(state.getFluidState());

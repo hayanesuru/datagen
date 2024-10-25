@@ -91,6 +91,8 @@ public class Datagen implements ModInitializer {
         var clazz = x.getSimpleName();
         if (clazz.endsWith("C2SPacket") || clazz.endsWith("S2CPacket")) {
             clazz = clazz.substring(0, clazz.length() - 9);
+        } else if (clazz.endsWith("Packet")) {
+            clazz = clazz.substring(0, clazz.length() - 6);
         } else {
             var superClazz = x.getSuperclass().getSimpleName();
             if (superClazz.endsWith("C2SPacket") || superClazz.endsWith("S2CPacket")) {

@@ -693,6 +693,105 @@ public class Datagen implements ModInitializer {
             b.append(ih(nval));
             b.append('\n');
         }
+        ncount = 0;
+        write_head(b, "entity_type_height", Registry.ENTITY_TYPE.getEntries().size());
+        for (var e : Registry.ENTITY_TYPE) {
+            var val = Float.floatToIntBits(e.getHeight());
+            if (ncount == 0) {
+                ncount = 1;
+                nval = val;
+            } else if (val == nval) {
+                ncount += 1;
+            } else if (ncount == 1) {
+                b.append(ih(nval));
+                b.append('\n');
+                nval = val;
+            } else {
+                b.append('~');
+                b.append(ih(ncount));
+                b.append(' ');
+                b.append(ih(nval));
+                b.append('\n');
+                ncount = 1;
+                nval = val;
+            }
+        }
+        if (ncount == 1) {
+            b.append(ih(nval));
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            b.append(' ');
+            b.append(ih(nval));
+            b.append('\n');
+        }
+        ncount = 0;
+        write_head(b, "entity_type_width", Registry.ENTITY_TYPE.getEntries().size());
+        for (var e : Registry.ENTITY_TYPE) {
+            var val = Float.floatToIntBits(e.getWidth());
+            if (ncount == 0) {
+                ncount = 1;
+                nval = val;
+            } else if (val == nval) {
+                ncount += 1;
+            } else if (ncount == 1) {
+                b.append(ih(nval));
+                b.append('\n');
+                nval = val;
+            } else {
+                b.append('~');
+                b.append(ih(ncount));
+                b.append(' ');
+                b.append(ih(nval));
+                b.append('\n');
+                ncount = 1;
+                nval = val;
+            }
+        }
+        if (ncount == 1) {
+            b.append(ih(nval));
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            b.append(' ');
+            b.append(ih(nval));
+            b.append('\n');
+        }
+        ncount = 0;
+        write_head(b, "entity_type_fixed", Registry.ENTITY_TYPE.getEntries().size());
+        for (var e : Registry.ENTITY_TYPE) {
+            var val = e.getDimensions().fixed ? 1 : 0;
+            if (ncount == 0) {
+                ncount = 1;
+                nval = val;
+            } else if (val == nval) {
+                ncount += 1;
+            } else if (ncount == 1) {
+                b.append(ih(nval));
+                b.append('\n');
+                nval = val;
+            } else {
+                b.append('~');
+                b.append(ih(ncount));
+                b.append(' ');
+                b.append(ih(nval));
+                b.append('\n');
+                ncount = 1;
+                nval = val;
+            }
+        }
+        if (ncount == 1) {
+            b.append(ih(nval));
+            b.append('\n');
+        } else if (ncount != 0) {
+            b.append('~');
+            b.append(ih(ncount));
+            b.append(' ');
+            b.append(ih(nval));
+            b.append('\n');
+        }
     }
 
     public static void write_head(StringBuilder b, String name, int size) {

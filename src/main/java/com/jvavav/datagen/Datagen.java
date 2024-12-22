@@ -1,9 +1,8 @@
 package com.jvavav.datagen;
 
-import it.unimi.dsi.fastutil.doubles.Double2IntOpenHashMap;
-import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.floats.Float2IntOpenHashMap;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -11,25 +10,24 @@ import net.fabricmc.api.ModInitializer;
 import net.minecraft.Bootstrap;
 import net.minecraft.SharedConstants;
 import net.minecraft.block.Block;
-import net.minecraft.block.SideShapeType;
 import net.minecraft.fluid.FlowableFluid;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Util;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
 import net.minecraft.world.EmptyBlockView;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 public class Datagen implements ModInitializer {
     @Override
@@ -68,6 +66,7 @@ public class Datagen implements ModInitializer {
         var vals = new Object2IntOpenHashMap<String>();
         var kvs = new Object2IntOpenHashMap<IntArrayList>();
         var ps = new Object2IntOpenHashMap<IntArrayList>();
+        var pps = new Int2IntOpenHashMap();
         write_head(b, "fluid_state",  Fluid.STATE_IDS.size());
         for (FluidState t : Fluid.STATE_IDS) {
             b.append(Registries.FLUID.getId(t.getFluid()).getPath());
@@ -86,6 +85,7 @@ public class Datagen implements ModInitializer {
         for (var block : Registries.BLOCK) {
             var p = block.getStateManager().getProperties();
             if (p.isEmpty()) {
+                pps.put(Registries.BLOCK.getRawId(block), -1);
                 continue;
             }
 
@@ -102,7 +102,12 @@ public class Datagen implements ModInitializer {
                 kvs.putIfAbsent(list, kvs.size());
                 list2.add(kvs.getInt(list));
             }
-            ps.putIfAbsent(list2, ps.size());
+            if (ps.containsKey(list2)) {
+                pps.put(Registries.BLOCK.getRawId(block), ps.getInt(list2));
+            } else {
+                pps.put(Registries.BLOCK.getRawId(block), ps.size());
+                ps.putIfAbsent(list2, ps.size());
+            }
         }
 
         var keyz = new ObjectArrayList<String>(keys.size());
@@ -165,60 +170,7 @@ public class Datagen implements ModInitializer {
         }
 
         write_head(b, "block_state", Registries.BLOCK.size());
-        var ncount = 0;
-        var nval = 0;
-        for (var block : Registries.BLOCK) {
-            int val = -1;
-            if (!block.getStateManager().getProperties().isEmpty()) {
-                var list = new IntArrayList(block.getStateManager().getProperties().size());
-                for (var prop : block.getStateManager().getProperties()) {
-                    var list2 = new IntArrayList(prop.getValues().size() + 1);
-                    list2.add(keys.getInt(prop.getName()));
-                    for (var x : prop.getValues()) {
-                        list2.add(vals.getInt(Util.getValueAsString(prop, x)));
-                    }
-                    list.add(kvs.getInt(list2));
-                }
-                val = ps.getInt(list);
-            }
-            if (ncount == 0) {
-                ncount = 1;
-                nval = val;
-            } else if (val == nval) {
-                ncount += 1;
-            } else if (ncount == 1) {
-                if (nval != -1) {
-                    b.append(ih(nval));
-                }
-                b.append('\n');
-                nval = val;
-            } else {
-                b.append('~');
-                b.append(ih(ncount));
-                if (nval != -1) {
-                    b.append(' ');
-                    b.append(ih(nval));
-                }
-                b.append('\n');
-                ncount = 1;
-                nval = val;
-            }
-        }
-        if (ncount == 1) {
-            if (nval != -1) {
-                b.append(ih(nval));
-            }
-            b.append('\n');
-        } else if (ncount != 0) {
-            b.append('~');
-            b.append(ih(ncount));
-            if (nval != -1) {
-                b.append(' ');
-                b.append(ih(nval));
-            }
-            b.append('\n');
-        }
-        ncount = 0;
+        write_rl(b, Registries.BLOCK.stream().mapToInt(it -> pps.get(Registries.BLOCK.getRawId(it))));
 
         write_head(b, "block_to_block_state", Registries.BLOCK.size());
         for (var block : Registries.BLOCK) {
@@ -238,13 +190,15 @@ public class Datagen implements ModInitializer {
         }
 
         var f32s = new Float2IntOpenHashMap(128);
-        f32s.put(0.0f, 0);
+        f32s.put(0.0F, 0);
         for (var block : Registries.BLOCK) {
             f32s.putIfAbsent(block.getDefaultState().getHardness(EmptyBlockView.INSTANCE, BlockPos.ORIGIN), f32s.size());
             f32s.putIfAbsent(block.getSlipperiness(), f32s.size());
+            f32s.putIfAbsent(block.getBlastResistance(), f32s.size());
             f32s.putIfAbsent(block.getVelocityMultiplier(), f32s.size());
             f32s.putIfAbsent(block.getJumpVelocityMultiplier(), f32s.size());
         }
+
         var f32z = new FloatArrayList(f32s.size());
         f32z.size(f32s.size());
         for (var e : f32s.float2IntEntrySet()) {
@@ -259,329 +213,24 @@ public class Datagen implements ModInitializer {
             b.append('\n');
         }
 
-        var shapes = new Object2IntOpenHashMap<List<Box>>(128);
-        for (var block : Registries.BLOCK) {
-            if (block.hasDynamicBounds()) {
-                continue;
-            }
-            for (var state : block.getStateManager().getStates()) {
-                shapes.putIfAbsent(state.getCollisionShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).getBoundingBoxes(), shapes.size());
-                if (state.isOpaque()) {
-                    shapes.putIfAbsent(state.getCullingShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).getBoundingBoxes(), shapes.size());
-                }
-            }
-        }
+        write_head(b, "block_settings_hardness", Registries.BLOCK.size());
+        write_rl(b, Registries.BLOCK.stream().mapToInt(x -> f32s.get(x.getDefaultState().getHardness(EmptyBlockView.INSTANCE, BlockPos.ORIGIN))));
 
-        var shapes2 = new ObjectArrayList<List<Box>>(shapes.size());
-        shapes2.size(shapes.size());
-        for (var e : shapes.object2IntEntrySet()) {
-            var k = e.getKey();
-            var v = e.getIntValue();
-            shapes2.set(v, k);
-        }
+        write_head(b, "block_settings_slipperiness", Registries.BLOCK.size());
+        write_rl(b, Registries.BLOCK.stream().mapToInt(x -> f32s.get(x.getSlipperiness())));
 
-        var f64s = new Double2IntOpenHashMap(128);
-        f64s.put(0.0, 0);
-        for (var shape : shapes2) {
-            for (var box : shape) {
-                f64s.putIfAbsent(box.minX, f64s.size());
-                f64s.putIfAbsent(box.minY, f64s.size());
-                f64s.putIfAbsent(box.minZ, f64s.size());
-                f64s.putIfAbsent(box.maxX, f64s.size());
-                f64s.putIfAbsent(box.maxY, f64s.size());
-                f64s.putIfAbsent(box.maxZ, f64s.size());
-            }
-        }
-        var f64z = new DoubleArrayList(f64s.size());
-        f64z.size(f64s.size());
-        for (var e : f64s.double2IntEntrySet()) {
-            var k = e.getDoubleKey();
-            var v = e.getIntValue();
-            f64z.set(v, k);
-        }
-        write_head(b, "float64_table", f64z.size());
-        for (var f64 : f64z) {
-            b.append(Long.toHexString(Double.doubleToLongBits(f64)));
-            b.append('\n');
-        }
-        write_head(b, "shape_table", shapes.size());
-        for (var e : shapes2) {
-            boolean first = true;
-            for (var x : e) {
-                if (!first) {
-                    b.append(' ');
-                }
-                first = false;
+        write_head(b, "block_settings_blast_resistance", Registries.BLOCK.size());
+        write_rl(b, Registries.BLOCK.stream().mapToInt(x -> f32s.get(x.getBlastResistance())));
 
-                b.append(ih(f64s.get(x.minX)));
-                b.append(' ');
-                b.append(ih(f64s.get(x.minY)));
-                b.append(' ');
-                b.append(ih(f64s.get(x.minZ)));
-                b.append(' ');
-                b.append(ih(f64s.get(x.maxX)));
-                b.append(' ');
-                b.append(ih(f64s.get(x.maxY)));
-                b.append(' ');
-                b.append(ih(f64s.get(x.maxZ)));
-            }
-            b.append('\n');
-        }
+        write_head(b, "block_settings_velocity_multiplier", Registries.BLOCK.size());
+        write_rl(b, Registries.BLOCK.stream().mapToInt(x -> f32s.get(x.getVelocityMultiplier())));
 
-        write_head(b, "block_settings#hardness " +
-                "blastresistance slipperiness velocity_multiplier " +
-                "jump_velocity_multiplier", Registries.BLOCK.size());
-
-        for (var block : Registries.BLOCK) {
-            float xf32a = block.getDefaultState().getHardness(EmptyBlockView.INSTANCE, BlockPos.ORIGIN);
-            float xf32b = block.getBlastResistance();
-            float xf32c = block.getSlipperiness();
-            float xf32d = block.getVelocityMultiplier();
-            float xf32e = block.getJumpVelocityMultiplier();
-            b.append(ih(f32s.get(xf32a)));
-            b.append(' ');
-            b.append(ih(f32s.get(xf32b)));
-            b.append(' ');
-            b.append(ih(f32s.get(xf32c)));
-            b.append(' ');
-            b.append(ih(f32s.get(xf32d)));
-            b.append(' ');
-            b.append(ih(f32s.get(xf32e)));
-            b.append('\n');
-        }
-
-        var lastb = Registries.BLOCK.get(Registries.BLOCK.size() - 1);
-        var lastid = Block.STATE_IDS.getRawId(lastb.getStateManager().getStates().get(lastb.getStateManager().getStates().size() - 1));
-        int mval = 0;
-
-        write_head(b, "block_state_settings#" +
-                "luminance (has_sided_transparency lava_ignitable " +
-                "material_replaceable opaque tool_required " +
-                "exceeds_cube redstone_power_source " +
-                "has_comparator_output)", lastid + 1);
-        for (var block : Registries.BLOCK) {
-            for (var state : block.getStateManager().getStates()) {
-                int flags = (state.hasComparatorOutput() ? 0b1 : 0) |
-                        (state.emitsRedstonePower() ? 0b10 : 0) |
-                        (state.exceedsCube() ? 0b100 : 0) |
-                        (state.isToolRequired() ? 0b1000 : 0) |
-                        (state.isOpaque() ? 0b10000 : 0) |
-                        (state.isReplaceable() ? 0b100000 : 0) |
-                        (state.isBurnable() ? 0b1000000 : 0) |
-                        (state.hasSidedTransparency() ? 0b10000000 : 0);
-                int lumi = state.getLuminance();
-
-                if (ncount == 0) {
-                    ncount = 1;
-                    nval = flags;
-                    mval = lumi;
-                } else if (flags == nval && lumi == mval) {
-                    ncount += 1;
-                } else if (ncount == 1) {
-                    b.append(ih(mval));
-                    b.append(' ');
-                    b.append(ih(nval));
-                    b.append('\n');
-                    nval = flags;
-                    mval = lumi;
-                } else {
-                    b.append('~');
-                    b.append(ih(ncount));
-                    b.append(' ');
-                    b.append(ih(mval));
-                    b.append(' ');
-                    b.append(ih(nval));
-                    b.append('\n');
-                    ncount = 1;
-                    nval = flags;
-                    mval = lumi;
-                }
-            }
-        }
-        if (ncount == 1) {
-            b.append(ih(mval));
-            b.append(' ');
-            b.append(ih(nval));
-            b.append('\n');
-        } else if (ncount != 0) {
-            b.append('~');
-            b.append(ih(ncount));
-            b.append(' ');
-            b.append(ih(mval));
-            b.append(' ');
-            b.append(ih(nval));
-            b.append('\n');
-        }
-        ncount = 0;
-
-        var bounds = new Object2IntOpenHashMap<IntArrayList>();
-        var boundx = new IntArrayList(lastid + 1);
-        for (var block : Registries.BLOCK) {
-            boolean isdyn = block.hasDynamicBounds();
-            if (isdyn) {
-                int size = block.getStateManager().getStates().size();
-                for (int i = 0; i < size; i++) {
-                    boundx.push(Integer.MAX_VALUE);
-                }
-                continue;
-            }
-            for (var state : block.getStateManager().getStates()) {
-                int flags1 = 0;
-                if (state.isOpaqueFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
-                    flags1 |= 1;
-                }
-                if (state.isFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
-                    flags1 |= 2;
-                }
-                if (state.isTransparent(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
-                    flags1 |= 4;
-                }
-                if (state.isSolidBlock(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
-                    flags1 |= 8;
-                }
-                flags1 |= state.getOpacity(EmptyBlockView.INSTANCE, BlockPos.ORIGIN) << 4;
-
-                int flags2 = 0;
-                int flagPos = 0;
-                for (var direction : Direction.values()) {
-                    boolean flag = state.isSideSolid(EmptyBlockView.INSTANCE, BlockPos.ORIGIN, direction, SideShapeType.FULL);
-                    if (flag) {
-                        flags2 |= 1 << flagPos;
-                    }
-                    flagPos++;
-                }
-
-                int flags3 = 0;
-                flagPos = 0;
-                for (var direction : Direction.values()) {
-                    boolean flag = state.isSideSolid(EmptyBlockView.INSTANCE, BlockPos.ORIGIN, direction, SideShapeType.CENTER);
-                    if (flag) {
-                        flags3 |= 1 << flagPos;
-                    }
-                    flagPos++;
-                }
-
-                int flags4 = 0;
-                flagPos = 0;
-
-                for (var direction : Direction.values()) {
-                    boolean flag = state.isSideSolid(EmptyBlockView.INSTANCE, BlockPos.ORIGIN, direction, SideShapeType.RIGID);
-                    if (flag) {
-                        flags4 |= 1 << flagPos;
-                    }
-                    flagPos++;
-                }
-
-                int flags5 = shapes.getInt(state.getCollisionShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).getBoundingBoxes());
-                int flags6 = shapes.getInt(state.getCullingShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).getBoundingBoxes());
-                var x = new IntArrayList(new int[]{flags1, flags2, flags3, flags4, flags5, flags6});
-                bounds.putIfAbsent(x, bounds.size());
-                boundx.push(bounds.getInt(x));
-            }
-        }
-
-        var boundz = new ObjectArrayList<IntArrayList>(bounds.size());
-        boundz.size(bounds.size());
-        for (var e : bounds.object2IntEntrySet()) {
-            var k = e.getKey();
-            var v = e.getIntValue();
-            boundz.set(v, k);
-        }
-        write_head(b, "block_state_static_bounds_table#" +
-                "(opacity(4) solid_block translucent full_cube " +
-                "opaque_full_cube) side_solid_full " +
-                "side_solid_center side_solid_rigid " +
-                "collision_shape culling_shape", boundz.size());
-        for (var bound : boundz) {
-            boolean first = true;
-            for (var x : bound) {
-                if (!first) {
-                    b.append(' ');
-                }
-                first = false;
-                b.append(ih(x));
-            }
-            b.append('\n');
-        }
-
-        write_head(b, "block_state_static_bounds", lastid + 1);
-        for (var val : boundx) {
-            if (val == Integer.MAX_VALUE) {
-                val = -1;
-            }
-
-            if (ncount == 0) {
-                ncount = 1;
-                nval = val;
-            } else if (val == nval) {
-                ncount += 1;
-            } else if (ncount == 1) {
-                if (nval != -1) {
-                    b.append(ih(nval));
-                }
-                b.append('\n');
-                nval = val;
-            } else {
-                b.append('~');
-                b.append(ih(ncount));
-                if (nval != -1) {
-                    b.append(' ');
-                    b.append(ih(nval));
-                }
-                b.append('\n');
-                ncount = 1;
-                nval = val;
-            }
-        }
-        if (ncount == 1) {
-            if (nval != -1) {
-                b.append(ih(nval));
-            }
-            b.append('\n');
-        } else if (ncount != 0) {
-            b.append('~');
-            b.append(ih(ncount));
-            if (nval != -1) {
-                b.append(' ');
-                b.append(ih(nval));
-            }
-            b.append('\n');
-        }
-        ncount = 0;
+        write_head(b, "block_settings_jump_velocity_multiplier", Registries.BLOCK.size());
+        write_rl(b, Registries.BLOCK.stream().mapToInt(x -> f32s.get(x.getJumpVelocityMultiplier())));
 
         write_head(b, "item_max_count", Registries.ITEM.size());
-        for (var item : Registries.ITEM) {
-            int val = item.getMaxCount();
-            if (ncount == 0) {
-                ncount = 1;
-                nval = val;
-            } else if (val == nval) {
-                ncount += 1;
-            } else if (ncount == 1) {
-                b.append(ih(nval));
-                b.append('\n');
-                nval = val;
-            } else {
-                b.append('~');
-                b.append(ih(ncount));
-                b.append(' ');
-                b.append(ih(nval));
-                b.append('\n');
-                ncount = 1;
-                nval = val;
-            }
-        }
-        if (ncount == 1) {
-            b.append(ih(nval));
-            b.append('\n');
-        } else if (ncount != 0) {
-            b.append('~');
-            b.append(ih(ncount));
-            b.append(' ');
-            b.append(ih(nval));
-            b.append('\n');
-        }
-        ncount = 0;
+        write_rl(b, Registries.ITEM.stream().mapToInt(Item::getMaxCount));
+
         write_head(b, "fluid_to_block", Fluid.STATE_IDS.size());
         for (var f : Fluid.STATE_IDS) {
             b.append(ih(Block.STATE_IDS.getRawId(f.getBlockState())));
@@ -602,13 +251,29 @@ public class Datagen implements ModInitializer {
             b.append(ih(Registries.FLUID.getRawId(f.getFluid())));
             b.append('\n');
         }
-        write_head(b, "block_to_fluid_state", Block.STATE_IDS.size());
-        for (var state : Block.STATE_IDS) {
-            var val = Fluid.STATE_IDS.getRawId(state.getFluidState());
-            if (ncount == 0) {
-                ncount = 1;
-                nval = val;
-            } else if (val == nval) {
+
+        write_head(b, "block_state_to_fluid_state", Block.STATE_IDS.size());
+        write_rl(b, StreamSupport.stream(Block.STATE_IDS.spliterator(), false).mapToInt(it -> Fluid.STATE_IDS.getRawId(it.getFluidState())));
+    }
+
+    public static void write_head(StringBuilder b, String name, int size) {
+        b.append(';');
+        b.append(name);
+        b.append(';');
+        b.append(ih(size));
+        b.append('\n');
+    }
+
+    public static void write_rl(StringBuilder b, IntStream stream) {
+        var i = stream.iterator();
+        if (!i.hasNext()) {
+            return;
+        }
+        int ncount = 1;
+        int nval = i.nextInt();
+        while (i.hasNext()) {
+            int val = i.nextInt();
+            if (val == nval) {
                 ncount += 1;
             } else if (ncount == 1) {
                 b.append(ih(nval));
@@ -634,14 +299,6 @@ public class Datagen implements ModInitializer {
             b.append(ih(nval));
             b.append('\n');
         }
-    }
-
-    public static void write_head(StringBuilder b, String name, int size) {
-        b.append(';');
-        b.append(name);
-        b.append(';');
-        b.append(ih(size));
-        b.append('\n');
     }
 
     public static String ih(int x) {
